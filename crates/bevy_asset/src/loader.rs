@@ -134,6 +134,10 @@ impl<'a> LoadContext<'a> {
         }
         asset_metas
     }
+
+    pub fn asset_io(&self) -> &dyn AssetIo {
+        self.asset_io
+    }
 }
 
 /// The result of loading an asset of type `T`

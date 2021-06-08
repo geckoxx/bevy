@@ -115,7 +115,7 @@ impl AssetServer {
     }
 
     pub fn watch_for_changes(&self) -> Result<(), AssetServerError> {
-        self.server.asset_io.watch_for_changes()?;
+        self.asset_io().watch_for_changes()?;
         Ok(())
     }
 
@@ -259,7 +259,7 @@ impl AssetServer {
         };
 
         // load the asset bytes
-        let bytes = match self.server.asset_io.load_path(asset_path.path()).await {
+        let bytes = match self.asset_io().load_path(asset_path.path()).await {
             Ok(bytes) => bytes,
             Err(err) => {
                 let mut asset_sources = self.server.asset_sources.write();
@@ -275,7 +275,7 @@ impl AssetServer {
         let mut load_context = LoadContext::new(
             asset_path.path(),
             &self.server.asset_ref_counter.channel,
-            &*self.server.asset_io,
+            self.asset_io(),
             version,
         );
         asset_loader
@@ -317,8 +317,7 @@ impl AssetServer {
             }
         }
 
-        self.server
-            .asset_io
+        self.asset_io()
             .watch_path_for_changes(asset_path.path())
             .unwrap();
         self.create_assets_in_load_context(&mut load_context);
@@ -354,15 +353,15 @@ impl AssetServer {
         path: P,
     ) -> Result<Vec<HandleUntyped>, AssetServerError> {
         let path = path.as_ref();
-        if !self.server.asset_io.is_directory(path) {
+        if !self.asset_io().is_dir(path) {
             return Err(AssetServerError::AssetFolderNotADirectory(
                 path.to_str().unwrap().to_string(),
             ));
         }
 
         let mut handles = Vec::new();
-        for child_path in self.server.asset_io.read_directory(path.as_ref())? {
-            if self.server.asset_io.is_directory(&child_path) {
+        for child_path in self.asset_io().read_directory(path.as_ref())? {
+            if self.asset_io().is_dir(&child_path) {
                 handles.extend(self.load_folder(&child_path)?);
             } else {
                 if self.get_path_asset_loader(&child_path).is_err() {
@@ -492,6 +491,10 @@ impl AssetServer {
                 Err(TryRecvError::Disconnected) => panic!("AssetChannel disconnected."),
             }
         }
+    }
+
+    pub fn asset_io(&self) -> &dyn AssetIo {
+        &*self.server.asset_io
     }
 }
 
